@@ -36,25 +36,25 @@ export function getDependsOnOwnProps(mapToProps) {
 //    the developer that their mapToProps function is not returning a valid result.
 //    
 export function wrapMapToPropsFunc(mapToProps, methodName) {
-  return function initProxySelector(dispatch, { displayName }) {
-    const proxy = function mapToPropsProxy(stateOrDispatch, ownProps) {
+  return function initProxySelector(dispatch, { displayName }, globalDispatch) {
+    const proxy = function mapToPropsProxy(stateOrDispatch, ownProps, globalDispatch) {
       return proxy.dependsOnOwnProps
-        ? proxy.mapToProps(stateOrDispatch, ownProps)
-        : proxy.mapToProps(stateOrDispatch)
+        ? proxy.mapToProps(stateOrDispatch, ownProps, globalDispatch)
+        : proxy.mapToProps(stateOrDispatch, globalDispatch)
     }
 
     // allow detectFactoryAndVerify to get ownProps
     proxy.dependsOnOwnProps = true
 
-    proxy.mapToProps = function detectFactoryAndVerify(stateOrDispatch, ownProps) {
+    proxy.mapToProps = function detectFactoryAndVerify(stateOrDispatch, ownProps, globalDispatch) {
       proxy.mapToProps = mapToProps
       proxy.dependsOnOwnProps = getDependsOnOwnProps(mapToProps)
-      let props = proxy(stateOrDispatch, ownProps)
+      let props = proxy(stateOrDispatch, ownProps, globalDispatch)
 
       if (typeof props === 'function') {
         proxy.mapToProps = props
         proxy.dependsOnOwnProps = getDependsOnOwnProps(props)
-        props = proxy(stateOrDispatch, ownProps)
+        props = proxy(stateOrDispatch, ownProps, globalDispatch )
       }
 
       if (process.env.NODE_ENV !== 'production') 

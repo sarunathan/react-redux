@@ -24,12 +24,25 @@ export function createProvider(storeKey = 'store', subKey) {
 
     class Provider extends Component {
         getChildContext() {
-          return { [storeKey]: this[storeKey], [subscriptionKey]: null }
+          let childContext = {
+              [storeKey]: this[storeKey],
+              [subscriptionKey]: null
+          }
+
+          if(this.global){
+              childContext["global"] = this["global"];
+          }
+
+          return childContext;
         }
 
         constructor(props, context) {
           super(props, context)
           this[storeKey] = props.store;
+          //Adds a global data store when a optional global data store is passed
+          if(props.global){
+            this["global"] = props.global;
+          }
         }
 
         render() {
@@ -48,9 +61,11 @@ export function createProvider(storeKey = 'store', subKey) {
     Provider.propTypes = {
         store: storeShape.isRequired,
         children: PropTypes.element.isRequired,
+        global: PropTypes.object
     }
     Provider.childContextTypes = {
         [storeKey]: storeShape.isRequired,
+        ["global"]: PropTypes.object,
         [subscriptionKey]: subscriptionShape,
     }
 

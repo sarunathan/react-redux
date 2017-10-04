@@ -1,6 +1,8 @@
 import hoistStatics from 'hoist-non-react-statics'
 import invariant from 'invariant'
 import { Component, createElement } from 'react'
+import PropTypes from 'prop-types'
+
 
 import Subscription from '../utils/Subscription'
 import { storeShape, subscriptionShape } from '../utils/PropTypes'
@@ -8,12 +10,20 @@ import { storeShape, subscriptionShape } from '../utils/PropTypes'
 let hotReloadingVersion = 0
 const dummyState = {}
 function noop() {}
-function makeSelectorStateful(sourceSelector, store) {
+function makeSelectorStateful(sourceSelector, store, globalStore) {
   // wrap the selector in an object that tracks its results between runs.
+  console.log("this is selector",sourceSelector);
   const selector = {
     run: function runComponentSelector(props) {
+
       try {
-        const nextProps = sourceSelector(store.getState(), props)
+        const storeData = (typeof store.getState() == "object" )?{...store.getState()}:store.getState()
+        if(globalStore){
+          storeData["__global"] = globalStore.getState();
+        }
+
+        const nextProps = sourceSelector(storeData, props)
+        
         if (nextProps !== selector.props || selector.error) {
           selector.shouldComponentUpdate = true
           selector.props = nextProps
@@ -47,7 +57,7 @@ export default function connectAdvanced(
     props. Do not use connectAdvanced directly without memoizing results between calls to your
     selector, otherwise the Connect component will re-render on every state or props change.
   */
-  selectorFactory,
+selectorFactory,
   // options object:
   {
     // the func used to compute this HOC's displayName from the wrapped component's displayName.
@@ -80,10 +90,11 @@ export default function connectAdvanced(
 
   const contextTypes = {
     [storeKey]: storeShape,
+    "global" :  PropTypes.object,
     [subscriptionKey]: subscriptionShape,
   }
   const childContextTypes = {
-    [subscriptionKey]: subscriptionShape,
+    [subscriptionKey]: subscriptionShape
   }
 
   return function wrapWithConnect(WrappedComponent) {
@@ -120,6 +131,7 @@ export default function connectAdvanced(
         this.state = {}
         this.renderCount = 0
         this.store = props[storeKey] || context[storeKey]
+        this.globalStore = props["global"] || context["global"]
         this.propsMode = Boolean(props[storeKey])
         this.setWrappedInstance = this.setWrappedInstance.bind(this)
 
@@ -152,6 +164,7 @@ export default function connectAdvanced(
         // dispatching an action in its componentWillMount, we have to re-run the select and maybe
         // re-render.
         this.subscription.trySubscribe()
+        this.globalSubscription && (this.globalSubscription.trySubscribe())
         this.selector.run(this.props)
         if (this.selector.shouldComponentUpdate) this.forceUpdate()
       }
@@ -167,8 +180,10 @@ export default function connectAdvanced(
       componentWillUnmount() {
         if (this.subscription) this.subscription.tryUnsubscribe()
         this.subscription = null
+        this.globalSubscription = null
         this.notifyNestedSubs = noop
         this.store = null
+        this.globalStore = null;
         this.selector.run = noop
         this.selector.shouldComponentUpdate = false
       }
@@ -186,8 +201,8 @@ export default function connectAdvanced(
       }
 
       initSelector() {
-        const sourceSelector = selectorFactory(this.store.dispatch, selectorFactoryOptions)
-        this.selector = makeSelectorStateful(sourceSelector, this.store)
+        const sourceSelector = selectorFactory(this.store.dispatch, this.globalStore?this.globalStore.dispatch:undefined, selectorFactoryOptions)
+        this.selector = makeSelectorStateful(sourceSelector, this.store, this.globalStore)
         this.selector.run(this.props)
       }
 
@@ -198,6 +213,11 @@ export default function connectAdvanced(
         // connected to the store via props shouldn't use subscription from context, or vice versa.
         const parentSub = (this.propsMode ? this.props : this.context)[subscriptionKey]
         this.subscription = new Subscription(this.store, parentSub, this.onStateChange.bind(this))
+        
+        if(this.globalStore){
+          // We do a global subscription when there is a global store passed
+          this.globalSubscription = new Subscription(this.globalStore, parentSub, this.onStateChange.bind(this))
+        }
 
         // `notifyNestedSubs` is duplicated to handle the case where the component is  unmounted in
         // the middle of the notification loop, where `this.subscription` will then be null. An

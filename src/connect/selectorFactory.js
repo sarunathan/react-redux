@@ -4,7 +4,8 @@ export function impureFinalPropsSelectorFactory(
   mapStateToProps,
   mapDispatchToProps,
   mergeProps,
-  dispatch
+  dispatch,
+  globalDispatch
 ) {
   return function impureFinalPropsSelector(state, ownProps) {
     return mergeProps(
@@ -20,6 +21,7 @@ export function pureFinalPropsSelectorFactory(
   mapDispatchToProps,
   mergeProps,
   dispatch,
+  globalDispatch,
   { areStatesEqual, areOwnPropsEqual, areStatePropsEqual }
 ) {
   let hasRunAtLeastOnce = false
@@ -33,7 +35,7 @@ export function pureFinalPropsSelectorFactory(
     state = firstState
     ownProps = firstOwnProps
     stateProps = mapStateToProps(state, ownProps)
-    dispatchProps = mapDispatchToProps(dispatch, ownProps)
+    dispatchProps = mapDispatchToProps(dispatch, ownProps, globalDispatch)
     mergedProps = mergeProps(stateProps, dispatchProps, ownProps)
     hasRunAtLeastOnce = true
     return mergedProps
@@ -43,7 +45,7 @@ export function pureFinalPropsSelectorFactory(
     stateProps = mapStateToProps(state, ownProps)
 
     if (mapDispatchToProps.dependsOnOwnProps)
-      dispatchProps = mapDispatchToProps(dispatch, ownProps)
+      dispatchProps = mapDispatchToProps(dispatch, ownProps, globalDispatch)
 
     mergedProps = mergeProps(stateProps, dispatchProps, ownProps)
     return mergedProps
@@ -54,7 +56,7 @@ export function pureFinalPropsSelectorFactory(
       stateProps = mapStateToProps(state, ownProps)
 
     if (mapDispatchToProps.dependsOnOwnProps)
-      dispatchProps = mapDispatchToProps(dispatch, ownProps)
+      dispatchProps = mapDispatchToProps(dispatch, ownProps, globalDispatch)
 
     mergedProps = mergeProps(stateProps, dispatchProps, ownProps)
     return mergedProps
@@ -97,15 +99,15 @@ export function pureFinalPropsSelectorFactory(
 // props have not changed. If false, the selector will always return a new
 // object and shouldComponentUpdate will always return true.
 
-export default function finalPropsSelectorFactory(dispatch, {
+export default function finalPropsSelectorFactory(dispatch, globalDispatch, {
   initMapStateToProps,
   initMapDispatchToProps,
   initMergeProps,
   ...options
 }) {
-  const mapStateToProps = initMapStateToProps(dispatch, options)
-  const mapDispatchToProps = initMapDispatchToProps(dispatch, options)
-  const mergeProps = initMergeProps(dispatch, options)
+  const mapStateToProps = initMapStateToProps(dispatch, options, globalDispatch)
+  const mapDispatchToProps = initMapDispatchToProps(dispatch, options, globalDispatch)
+  const mergeProps = initMergeProps(dispatch, options, globalDispatch)
 
   if (process.env.NODE_ENV !== 'production') {
     verifySubselectors(mapStateToProps, mapDispatchToProps, mergeProps, options.displayName)
@@ -120,6 +122,7 @@ export default function finalPropsSelectorFactory(dispatch, {
     mapDispatchToProps,
     mergeProps,
     dispatch,
+    globalDispatch,
     options
   )
 }
